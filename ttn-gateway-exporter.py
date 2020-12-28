@@ -63,8 +63,6 @@ def collect_metrics(metric):
     elif metric == 'downlink':
         return gateway['status']['downlink']
 
-    return random.random()
-
 
 def prepare_metrics():
     logging.debug('prepare metrics')
