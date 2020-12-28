@@ -33,8 +33,8 @@ def get_token(session):
     else:
         logging.debug('get new token')
         login = {'username': FLAGS.username, 'password': FLAGS.password}
-        res = session.post('https://account.thethingsnetwork.org/api/v2/users/login', data=login)
-        res = session.get('https://console.thethingsnetwork.org')
+        session.post('https://account.thethingsnetwork.org/api/v2/users/login', data=login)
+        session.get('https://console.thethingsnetwork.org')
         res = session.get('https://console.thethingsnetwork.org/refresh')
         json = res.json()
         TOKEN = json['access_token']
