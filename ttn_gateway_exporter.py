@@ -1,6 +1,6 @@
 import datetime
-import random
 import signal
+import sys
 import threading
 
 import requests
@@ -45,30 +45,47 @@ def get_token(session):
 cache = TTLCache(maxsize=200, ttl=10)
 
 
-def hashkey(*args, **kwargs):
-    return args[0]
-
-
-@cached(cache, key=hashkey)
-def collect_metrics(metric):
-    logging.debug('collect_metrics %s' % metric)
+@cached(cache)
+def get_all_gateways():
     session = requests.Session()
     local_token = get_token(session)
     header = {'Authorization': 'Bearer ' + local_token}
     res = session.get('https://console.thethingsnetwork.org/api/gateways', headers=header)
-    gateways = res.json()
-    gateway = gateways[0]
-    if metric == 'uplink':
-        return gateway['status']['uplink']
-    elif metric == 'downlink':
-        return gateway['status']['downlink']
+    return res.json()
+
+
+def collect_metrics(gateway_id, metric):
+    gateways = get_all_gateways()
+
+    for gateway in gateways:
+        if gateway['id'] == gateway_id:
+            if metric == 'uplink':
+                value = gateway['status']['uplink']
+            elif metric == 'downlink':
+                value = gateway['status']['downlink']
+            elif metric == 'rx_ok':
+                value = gateway['status']['rx_ok']
+            elif metric == 'tx_in':
+                value = gateway['status']['tx_in']
+            else:
+                logging.error('metric not defined')
+                value = 0
+            return value
+    logging.error('gateway not found')
+    return 0
+
+
+def get_gateway_ids():
+    gateways = get_all_gateways()
+    return [gateway['id'] for gateway in gateways]
 
 
 def prepare_metrics():
     logging.debug('prepare metrics')
-    for metric in ['uplink', 'downlink']:
-        g = Gauge('ttn_gateway_%s' % metric, 'Number of %s messages processed by the gateway' % metric)
-        g.set_function(lambda m=metric: collect_metrics(m))
+    for metric in ['uplink', 'downlink', 'rx_ok', 'tx_in']:
+        gauge = Gauge('ttn_gateway_messages_%s' % metric, 'Number of %s messages' % metric, labelnames=['gateway_id'])
+        for gateway_id in get_gateway_ids():
+            gauge.labels(gateway_id=gateway_id).set_function(lambda i=gateway_id, m=metric: collect_metrics(i, m))
 
 
 def quit_app(unused_signo, unused_frame):
@@ -80,7 +97,7 @@ def main(unused_argv):
         logging.set_verbosity(logging.DEBUG)
     if FLAGS.username is None or FLAGS.password is None:
         logging.error('Provide username and password!')
-        exit(-1)
+        sys.exit(-1)
 
     prepare_metrics()
 
