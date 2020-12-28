@@ -81,7 +81,6 @@ def main(unused_argv):
     if FLAGS.username is None or FLAGS.password is None:
         logging.error('Provide username and password!')
         exit(-1)
-    logging.info(FLAGS.password)
 
     prepare_metrics()
 
