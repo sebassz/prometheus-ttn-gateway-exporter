@@ -1,4 +1,5 @@
 import datetime
+import math
 import signal
 import sys
 import threading
@@ -59,20 +60,25 @@ def collect_metrics(gateway_id, metric):
 
     for gateway in gateways:
         if gateway['id'] == gateway_id:
-            if metric == 'uplink':
-                value = gateway['status']['uplink']
-            elif metric == 'downlink':
-                value = gateway['status']['downlink']
-            elif metric == 'rx_ok':
-                value = gateway['status']['rx_ok']
-            elif metric == 'tx_in':
-                value = gateway['status']['tx_in']
+            status = gateway['status']
+            if status:
+                if metric == 'uplink':
+                    value = status['uplink']
+                elif metric == 'downlink':
+                    value = status['downlink']
+                elif metric == 'rx_ok':
+                    value = status['rx_ok']
+                elif metric == 'tx_in':
+                    value = status['tx_in']
+                else:
+                    logging.error('metric not defined')
+                    value = math.nan
+                return value
             else:
-                logging.error('metric not defined')
-                value = 0
-            return value
+                logging.error('gateway status not accessible')
+                return math.nan
     logging.error('gateway not found')
-    return 0
+    return math.nan
 
 
 def get_gateway_ids():
