@@ -1,11 +1,11 @@
 # prometheus-ttn-gateway-exporter
 
 `prometheus-ttn-gateway-exporter` allows you to monitor
-your [The Thing Network](https://thethingsnetwork.org) gateways
+your [TheThingsNetwork](https://thethingsnetwork.org) gateways
 with [Prometheus](https://prometheus.io).
 
 The details behind the exporter are described in a
-separate [blog post](https://www.cemocom.de/2020/12/16/thethingsnetwork-gateway-monitoring/).
+separate [blog post](https://www.cemocom.de/2022/02/10/the-things-stack-gateway-monitoring/).
 
 ## Install
 
@@ -15,10 +15,10 @@ The exporter depends on some python packages. Install them using `pip install -r
 
 Start the exporter by executing in a console.
 
-    python ttn_gateway_exporter.py --username user --password pass
+    python ttn_gateway_exporter.py --key API_KEY
 
-Use the username and password as used to log in in
-the [TTN Console](https://console.thethingsnetwork.org/). By default, the metrics are available
+Create and use an TheThingsNetwork API key with the permissions *view gateway status* and
+*list gateways the user is a collaborator of*. By default, the metrics are available
 under [http://localhost:9714/](http://localhost:9714/). The address and port the application listens
 to can be configured with the command line parameter `--listen`.
 
