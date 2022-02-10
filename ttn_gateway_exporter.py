@@ -1,5 +1,3 @@
-import datetime
-import math
 import signal
 import sys
 import threading
@@ -13,7 +11,7 @@ from prometheus_client import start_wsgi_server, Gauge
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('listen', ':9714', 'Address:port to listen on')
-flags.DEFINE_string('username', None, 'Username to authenticate with')
+flags.DEFINE_string('key', None, 'API key')
 flags.DEFINE_string('password', None, 'Password to authenticate with')
 flags.DEFINE_bool('verbose', False, 'Enable verbose logging')
 
@@ -22,73 +20,35 @@ exit_app = threading.Event()
 TOKEN = None
 EXPIRES = None
 
-
-def get_token(session):
-    global TOKEN
-    global EXPIRES
-    logging.debug('get_token')
-    now = datetime.datetime.now()
-    if TOKEN and EXPIRES and EXPIRES > now:
-        logging.debug('reuse existing token')
-        return TOKEN
-    else:
-        logging.debug('get new token')
-        login = {'username': FLAGS.username, 'password': FLAGS.password}
-        session.post('https://account.thethingsnetwork.org/api/v2/users/login', data=login)
-        session.get('https://console.thethingsnetwork.org')
-        res = session.get('https://console.thethingsnetwork.org/refresh')
-        json = res.json()
-        TOKEN = json['access_token']
-        EXPIRES = datetime.datetime.fromtimestamp(json['expires'] / 1000)
-        return TOKEN
-
-
 cache = TTLCache(maxsize=200, ttl=10)
 
 
 @cached(cache)
-def get_all_gateways():
+def get_gateway_stats(gateway_id):
     session = requests.Session()
-    local_token = get_token(session)
-    header = {'Authorization': 'Bearer ' + local_token}
-    res = session.get('https://console.thethingsnetwork.org/api/gateways', headers=header)
+    header = {'Authorization': 'Bearer ' + FLAGS.key}
+    res = session.get('https://eu1.cloud.thethings.network/api/v3/gs/gateways/%s/connection/stats' % gateway_id, headers=header)
     return res.json()
 
 
-def collect_metrics(gateway_id, metric):
-    gateways = get_all_gateways()
-
-    for gateway in gateways:
-        if gateway['id'] == gateway_id:
-            status = gateway['status']
-            if status:
-                if metric == 'uplink':
-                    value = status['uplink']
-                elif metric == 'downlink':
-                    value = status['downlink']
-                elif metric == 'rx_ok':
-                    value = status['rx_ok']
-                elif metric == 'tx_in':
-                    value = status['tx_in']
-                else:
-                    logging.error('metric not defined')
-                    value = math.nan
-                return value
-            else:
-                logging.error('gateway status not accessible')
-                return math.nan
-    logging.error('gateway not found')
-    return math.nan
-
-
+@cached(cache)
 def get_gateway_ids():
-    gateways = get_all_gateways()
-    return [gateway['id'] for gateway in gateways]
+    session = requests.Session()
+    header = {'Authorization': 'Bearer ' + FLAGS.key}
+    res = session.get('https://eu1.cloud.thethings.network/api/v3/gateways', headers=header)
+    return [gateway['ids']['gateway_id'] for gateway in res.json()['gateways']]
+
+
+def collect_metrics(gateway_id, metric) -> int:
+    gateway_stats = get_gateway_stats(gateway_id)
+    if metric in gateway_stats:
+        return int(gateway_stats[metric])
+    return 0
 
 
 def prepare_metrics():
     logging.debug('prepare metrics')
-    for metric in ['uplink', 'downlink', 'rx_ok', 'tx_in']:
+    for metric in ['uplink_count', 'downlink_count']:
         gauge = Gauge('ttn_gateway_messages_%s' % metric, 'Number of %s messages' % metric, labelnames=['gateway_id'])
         for gateway_id in get_gateway_ids():
             gauge.labels(gateway_id=gateway_id).set_function(lambda i=gateway_id, m=metric: collect_metrics(i, m))
@@ -101,8 +61,8 @@ def quit_app(unused_signo, unused_frame):
 def main(unused_argv):
     if FLAGS.verbose:
         logging.set_verbosity(logging.DEBUG)
-    if FLAGS.username is None or FLAGS.password is None:
-        logging.error('Provide username and password!')
+    if FLAGS.key is None:
+        logging.error('Provide API key!')
         sys.exit(-1)
 
     prepare_metrics()
