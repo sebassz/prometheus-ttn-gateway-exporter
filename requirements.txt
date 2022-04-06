@@ -1,4 +1,4 @@
 absl-py==1.0.0
 requests==2.27.1
-prometheus_client==0.13.1
+prometheus_client==0.14.0
 cachetools==5.0.0
