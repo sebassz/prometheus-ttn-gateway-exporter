@@ -1,4 +1,4 @@
-absl-py==2.3.1
+absl-py==2.4.0
 requests==2.32.5
 prometheus_client==0.24.1
 cachetools==6.2.5
