@@ -1,4 +1,4 @@
 absl-py==2.5.1
 requests==2.34.2
 prometheus_client==0.26.0
-cachetools==7.2.6
+cachetools==7.2.7
